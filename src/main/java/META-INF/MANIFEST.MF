@@ -1,0 +1,6 @@
+Manifest-Version: 1.0
+Main-Class: FIND
+Class-Path: google-collections-1.0.jar commons-logging-1.1.1.jar commons
+ -lang3-3.4.jar opencsv-3.8.jar annotations-23.0.0.jar commons-collectio
+ ns-3.2.1.jar commons-beanutils-1.9.2.jar
+
