@@ -6,6 +6,7 @@ import android.app.Activity;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.le.BluetoothLeScanner;
 import android.bluetooth.le.ScanCallback;
+import android.bluetooth.le.ScanFilter;
 import android.bluetooth.le.ScanSettings;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
@@ -65,10 +66,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private static final String TAG = "MainActivity";
     private TextView textView = null;
     private String beaconId = "", mode = "";
-    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 10;
+    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 15;
     private BluetoothAdapter bluetoothAdapter = null;
     private final Handler handler = new Handler();
     BarChart chart;
+    private final String deviceAddress = "F4:9A:53:1D:08:A1";
 
     private final ScanCallback scanCallback = new ScanCallback() {
         @SuppressLint({"MissingPermission", "SetTextI18n"})
@@ -76,7 +78,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
             super.onScanResult(callbackType, result);
             System.out.println(result.getDevice().getAddress());
-            if (result.getDevice().getAddress().equals("F4:9A:53:1D:08:A1")) {
+            if (result.getDevice().getAddress().equals(deviceAddress)) {
                 useTime.add(System.currentTimeMillis() - startTime);
                 textView.append(useTime.size() + " pieces of information were collected\n" +
                         "Time: " + useTime.get(useTime.size() - 1) + "ms\n");
@@ -275,7 +277,10 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private void delayedScan(ScanSettings settings, long time) {
         handler.postDelayed(() -> {
             startTime = System.currentTimeMillis();
-            scanner.startScan(null, settings, scanCallback);
+            ScanFilter filter = new ScanFilter.Builder()
+                    .setDeviceAddress(deviceAddress)
+                    .build();
+            scanner.startScan(Collections.singletonList(filter), settings, scanCallback);
             if (time == (SCAN_COUNT - 1) * INTERVAL) {
                 try {
                     Thread.sleep(10000);
