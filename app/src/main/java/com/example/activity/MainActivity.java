@@ -53,13 +53,8 @@ import com.github.mikephil.charting.data.*;
 public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private WifiUtil wifiUtil;
     ArrayAdapter<String> adapter = null;
-
-    // 全局变量设置
-    private List<myWiFiInfo> myWiFiInfos = new ArrayList<>();
-    private WifiManager wifiManager;
     private final List<String> wifiId = new ArrayList<>();
     private List<ScanResult> wifiList = new ArrayList<>();
-    private final ArrayList<String> bledata_compare = new ArrayList<>();
     private final ArrayList<String> bledata = new ArrayList<>();
     private final List<Long> useTime = new ArrayList<>();
     private ScanSettings lowLantencySetting = null;
@@ -70,11 +65,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private static final String TAG = "MainActivity";
     private TextView textView = null;
     private String beaconId = "", mode = "";
-    private final String UUID = "00000000-0000-0000-0000-000000000000";
-    long startTime;
-    int scanCount = 10;
+    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 10;
     private BluetoothAdapter bluetoothAdapter = null;
-
     private final Handler handler = new Handler();
     BarChart chart;
 
@@ -83,12 +75,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
             super.onScanResult(callbackType, result);
+            System.out.println(result.getDevice().getAddress());
             if (result.getDevice().getAddress().equals("F4:9A:53:1D:08:A1")) {
-                long endTime = System.currentTimeMillis();
-                long time = endTime - startTime;
-                useTime.add(time);
-                textView.setText("蓝牙扫描已收集" + Integer.toString(useTime.size()) + "条信息\n" +
-                        "本次扫描时间： " + Long.toString(useTime.get(useTime.size() - 1)) + "ms\n");
+                useTime.add(System.currentTimeMillis() - startTime);
+                textView.append(useTime.size() + " pieces of information were collected\n" +
+                        "Time: " + useTime.get(useTime.size() - 1) + "ms\n");
                 scanner.stopScan(scanCallback);
             }
         }
@@ -124,17 +115,15 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
 
         wifiUtil = new WifiUtil(this);
-        wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
+        WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         lowLantencySetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
         balencedSetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         scanner = bluetoothAdapter.getBluetoothLeScanner();
 
-        requestLocationPermissions();
         verifyStoragePermissions(this);
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, this.bledata);
-        textView = (TextView) findViewById(R.id.textView1);
-        textView.setText("");
+        textView = (TextView) findViewById(R.id.textView2);
         Spinner spinner = findViewById(R.id.spinner);
         String[] options = {"FiND", "Balanced", "Low Latency"};
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, options));
@@ -144,9 +133,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                 mode = options[position];
             }
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-
-            }
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
         initChart();
         initBeacon();
@@ -164,32 +151,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         chart.setDrawGridBackground(false);
     }
 
-    // 权限设置
-    private void requestLocationPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-
-            // Android M Permission check
-
-            if (this.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-
-                final AlertDialog.Builder builder = new AlertDialog.Builder(this);
-
-                builder.setTitle("This app needs location access");
-                builder.setMessage("Please grant location access so this app can detect beacons.");
-                builder.setPositiveButton(android.R.string.ok, null);
-
-                builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-
-                    @Override
-                    public void onDismiss(DialogInterface dialog) {
-                        requestPermissions(new String[]{Manifest.permission.ACCESS_COARSE_LOCATION}, PERMISSION_REQUEST_COARSE_LOCATION);
-                    }
-                });
-                builder.show();
-            }
-        }
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
@@ -203,15 +164,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                     builder.setMessage("Since location access has not been granted, this app will not be able to discover beacons when in the background.");
                     builder.setPositiveButton(android.R.string.ok, null);
                     builder.setOnDismissListener(new DialogInterface.OnDismissListener() {
-
                         @Override
-                        public void onDismiss(DialogInterface dialog) {
-                        }
-
+                        public void onDismiss(DialogInterface dialog) {}
                     });
                     builder.show();
                 }
-                return;
             }
         }
     }
@@ -245,10 +202,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
             public void didRangeBeaconsInRegion(Collection<Beacon> collection, Region region) {
                 Log.d(TAG, "收集了" + collection.size() + "条数据");
                 if (collection.size() > 0) {
-                    List<Beacon> beacons = new ArrayList<>();
-                    for (Beacon beacon : collection) {
-                        beacons.add(beacon);
-                    }
+                    List<Beacon> beacons = new ArrayList<>(collection);
                     if (beacons.size() > 0) {
                         Collections.sort(beacons, new Comparator<Beacon>() {
                             public int compare(Beacon arg0, Beacon arg1) {
@@ -258,7 +212,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                         int distance = -1;
 
                         Beacon nearBeacon = beacons.get(0);
-                        if (!nearBeacon.getId1().equals("50765cb7-d9ea-4e21-99a4-fa879613a492")) { // 目标beacon
+                        if (!nearBeacon.getId1().equals("50765cb7-d9ea-4e21-99a4-fa879613a492")) {
                             beaconId = nearBeacon.getId1().toString();
                             int Rssi = nearBeacon.getRssi();
                             Log.i(TAG, "didRangeBeaconsInRegion: " + beacons.toString());
@@ -268,7 +222,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                             wifiList = wifiUtil.getWifiList();
                             server.update(nearBeacon, wifiList);
                             for (ScanResult item : wifiList) {
-                                if (!wifiId.contains(item.BSSID)) wifiId.add(item.BSSID);
+                                if (!wifiId.contains(item.BSSID)) {
+                                    wifiId.add(item.BSSID);
+                                }
                             }
                         }
                     }
@@ -282,14 +238,21 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     public void FiNDScan(View view) throws IOException {
         startTime = System.currentTimeMillis();
         server.setBeacon(startTime, wifiUtil, useTime);
+        textView.append(useTime.size() + " pieces of information were collected\n" +
+                "Time: " + useTime.get(useTime.size() - 1) + "ms\n");
     }
 
     @SuppressLint("MissingPermission")
     public void scan(View view) throws IOException {
+        useTime.clear();
+        textView.append("Information has been cleared\n");
+        textView.append("Start collection\n");
+        textView.append("Scan Mode: " + mode + '\n');
         if (mode.equals("FiND")) {
-            for (int i = 0; i < scanCount; i ++ ) {
+            for (int i = 0; i < SCAN_COUNT; i ++ ) {
                 FiNDScan(view);
             }
+            textView.append("Collection End\n");
         } else {
             if (!bluetoothAdapter.isEnabled()) {
                 bluetoothAdapter.enable();
@@ -301,26 +264,32 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
             } else {
                 settings = lowLantencySetting;
             }
-            for (int i = 0; i < scanCount; i ++ ) {
-                delayedScan(settings, 10000L * i);
+            textView.append("Scan Interval: " + INTERVAL + "ms\n");
+            for (int i = 0; i < SCAN_COUNT; i ++ ) {
+                delayedScan(settings, INTERVAL * i);
             }
         }
     }
 
     @SuppressLint("MissingPermission")
     private void delayedScan(ScanSettings settings, long time) {
-        startTime = System.currentTimeMillis();
-        handler.postDelayed(() -> scanner.startScan(null, settings, scanCallback), time);
-    }
-
-    @SuppressLint("MissingPermission")
-    private void scanLeDevice() {
-
+        handler.postDelayed(() -> {
+            startTime = System.currentTimeMillis();
+            scanner.startScan(null, settings, scanCallback);
+            if (time == (SCAN_COUNT - 1) * INTERVAL) {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                textView.append("Collection End\n");
+            }
+        }, time);
     }
     public void visualization(View view) {
         Collections.sort(useTime);
         ArrayList<BarEntry> entries = new ArrayList<>();
-        for (int i = 1; i < useTime.size(); i++) {
+        for (int i = 0; i < useTime.size(); i++) {
             entries.add(new BarEntry(i, useTime.get(i)));
         }
 
@@ -331,10 +300,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         BarData data = new BarData(dataSet);
         chart.setData(data);
         chart.invalidate();
-    }
-
-    public void clear(View view) {
-        useTime.clear();
     }
 
     // 析构函数
