@@ -66,7 +66,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private static final String TAG = "MainActivity";
     private TextView textView = null;
     private String beaconId = "", mode = "";
-    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 15;
+    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 1;
     private BluetoothAdapter bluetoothAdapter = null;
     private final Handler handler = new Handler();
     BarChart chart;
@@ -281,13 +281,10 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
                     .setDeviceAddress(deviceAddress)
                     .build();
             scanner.startScan(Collections.singletonList(filter), settings, scanCallback);
-            if (time == (SCAN_COUNT - 1) * INTERVAL) {
-                try {
-                    Thread.sleep(10000);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-                textView.append("Collection End\n");
+            if (time == 0) {
+                handler.postDelayed(() -> {
+                    textView.append("Collection End\n");
+                }, SCAN_COUNT * INTERVAL);
             }
         }, time);
     }
