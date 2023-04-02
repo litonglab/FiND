@@ -6,6 +6,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
 import org.altbeacon.beacon.Beacon;
+
 import com.example.wifi.*;
 
 import java.io.IOException;
@@ -24,85 +25,95 @@ public class Server {
 
     // 客户端更新调用
     public void update(Beacon beacon, List<ScanResult> wifiList) {
-        new Thread((Runnable) () -> {
-            try {
-                socket = new Socket(HOST, PORT);
-                OutputStream outputStream = socket.getOutputStream();
-                StringBuilder buffer = new StringBuilder();
-                buffer.append("update\n");
-                buffer.append(beacon.getId2().toString());
-                buffer.append(beacon.getId3().toString());
-                buffer.append(beacon.getId1().toString());
-                buffer.append('\n');
-                for(ScanResult scanResult : wifiList) {
-                    buffer.append(new Wifi(scanResult.BSSID, scanResult.level));
-                    buffer.append('\n');
-                }
-                String message = new String(buffer);
-                outputStream.write(message.getBytes(StandardCharsets.UTF_8));
-                socket.shutdownOutput();
-
-                outputStream.close();
-                socket.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }).start();
-    }
-
-    // 客户端查询调用
-    public void setBeacon(long startTime, WifiUtil wifiUtil, List<Long> FiNDUseTime) throws IOException {
-        List<String> result = new ArrayList<>();
-        new Thread((Runnable) () -> {
-            try {
-                boolean flag = true;
-                long cnt = 0;
-                do {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
                     socket = new Socket(HOST, PORT);
                     OutputStream outputStream = socket.getOutputStream();
-                    InputStream inputStream = socket.getInputStream();
-                    wifiUtil.startScan();
-                    List<ScanResult> wifiList = wifiUtil.getWifiList();
-                    result.clear();
-
                     StringBuilder buffer = new StringBuilder();
-                    buffer.append("getResult\n");
+                    buffer.append("update\n");
+                    buffer.append(beacon.getId2().toString());
+                    buffer.append(beacon.getId3().toString());
+                    buffer.append(beacon.getId1().toString());
+                    buffer.append('\n');
                     for (ScanResult scanResult : wifiList) {
                         buffer.append(new Wifi(scanResult.BSSID, scanResult.level));
                         buffer.append('\n');
                     }
                     String message = new String(buffer);
                     outputStream.write(message.getBytes(StandardCharsets.UTF_8));
-
                     socket.shutdownOutput();
-                    byte[] bytes = new byte[1024];
-                    int len;
-                    while ((len = inputStream.read(bytes)) != -1) {
-                        result.add(new String(bytes, 0, len, StandardCharsets.UTF_8));
-                    }
-                    if (result.size() == 0 || result.get(0).length()  == 0) continue;
-                    if (result.get(0).charAt(0) == '0' && result.get(0).charAt(1) == '0') {
-                        flag = false;
-                    }
-                    if (flag) {
-                        System.out.println("------------------------------------");
-                    }
-                    Thread.sleep(1000);
-                    cnt ++ ;
-                    inputStream.close();
-                    outputStream.close();
-                } while(flag);
 
-                socket.close();
-                long endTime = System.currentTimeMillis();
-                long useTime = endTime - startTime - cnt * 1000;
-                FiNDUseTime.add(useTime);
-                System.out.println("**************************************");
-                System.out.println("收集了" + FiNDUseTime.size() + "条数据");
-                System.out.println("本次用时" + useTime + "ms");
-            } catch (IOException | InterruptedException e) {
-                e.printStackTrace();
+                    outputStream.close();
+                    socket.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
             }
-        }).start();
+        });
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    // 客户端查询调用
+    public void setBeacon(long startTime, WifiUtil wifiUtil, List<Long> FiNDUseTime) throws IOException {
+        List<String> result = new ArrayList<>();
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    boolean flag = true;
+                    long cnt = 0;
+                    do {
+                        socket = new Socket(HOST, PORT);
+                        OutputStream outputStream = socket.getOutputStream();
+                        InputStream inputStream = socket.getInputStream();
+                        wifiUtil.startScan();
+                        List<ScanResult> wifiList = wifiUtil.getWifiList();
+                        result.clear();
+
+                        StringBuilder buffer = new StringBuilder();
+                        buffer.append("getResult\n");
+                        for (ScanResult scanResult : wifiList) {
+                            buffer.append(new Wifi(scanResult.BSSID, scanResult.level));
+                            buffer.append('\n');
+                        }
+                        String message = new String(buffer);
+                        outputStream.write(message.getBytes(StandardCharsets.UTF_8));
+
+                        socket.shutdownOutput();
+                        byte[] bytes = new byte[1024];
+                        int len;
+                        while ((len = inputStream.read(bytes)) != -1) {
+                            result.add(new String(bytes, 0, len, StandardCharsets.UTF_8));
+                        }
+                        if (result.size() == 0 || result.get(0).length() == 0) continue;
+                        if (result.get(0).charAt(0) == '0' && result.get(0).charAt(1) == '0') {
+                            flag = false;
+                        }
+                        inputStream.close();
+                        outputStream.close();
+                    } while (flag);
+
+                    socket.close();
+                    long endTime = System.currentTimeMillis();
+                    long useTime = endTime - startTime;
+                    FiNDUseTime.add(useTime);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        thread.start();
+        try {
+            thread.join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

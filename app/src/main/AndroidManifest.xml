@@ -3,12 +3,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.wifidemo">
 
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
     <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS"
         tools:ignore="ProtectedPermissions" />
 
     <uses-permission android:name="android.Manifest.permission.NETWORK_SETTINGS" android:protectionLevel="signature" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
