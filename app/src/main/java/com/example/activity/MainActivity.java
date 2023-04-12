@@ -59,6 +59,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private final ArrayList<String> bledata = new ArrayList<>();
     private final List<Long> useTime = new ArrayList<>();
     private ScanSettings lowLantencySetting = null;
+    private ScanSettings lowPowerSetting = null;
     private ScanSettings balencedSetting = null;
     private BluetoothLeScanner scanner = null;
     private final Server server = new Server();
@@ -66,7 +67,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
     private static final String TAG = "MainActivity";
     private TextView textView = null;
     private String beaconId = "", mode = "";
-    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 1;
+    long startTime = 0, INTERVAL = 45000, SCAN_COUNT = 10;
     private BluetoothAdapter bluetoothAdapter = null;
     private final Handler handler = new Handler();
     BarChart chart;
@@ -77,13 +78,10 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         @Override
         public void onScanResult(int callbackType, android.bluetooth.le.ScanResult result) {
             super.onScanResult(callbackType, result);
-            System.out.println(result.getDevice().getAddress());
-            if (result.getDevice().getAddress().equals(deviceAddress)) {
-                useTime.add(System.currentTimeMillis() - startTime);
-                textView.append(useTime.size() + " pieces of information were collected\n" +
-                        "Time: " + useTime.get(useTime.size() - 1) + "ms\n");
-                scanner.stopScan(scanCallback);
-            }
+            useTime.add(System.currentTimeMillis() - startTime);
+            textView.append(useTime.size() + " pieces of information were collected\n" +
+                    "Time: " + useTime.get(useTime.size() - 1) + "ms\n");
+            scanner.stopScan(scanCallback);
         }
 
         @Override
@@ -120,6 +118,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(WIFI_SERVICE);
         lowLantencySetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build();
         balencedSetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_BALANCED).build();
+        lowPowerSetting = new ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).build();
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
         scanner = bluetoothAdapter.getBluetoothLeScanner();
 
@@ -127,8 +126,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
         adapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, this.bledata);
         textView = (TextView) findViewById(R.id.textView2);
         Spinner spinner = findViewById(R.id.spinner);
-        String[] options = {"FiND", "Balanced", "Low Latency"};
+        String[] options = {"FiND", "Low Power", "Balanced", "Low Latency"};
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, options));
+        spinner.setSelection(0);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -263,6 +263,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer {
             ScanSettings settings;
             if (mode.equals("Balanced")) {
                 settings = balencedSetting;
+            } else if (mode.equals("Low Power")){
+                settings = lowPowerSetting;
             } else {
                 settings = lowLantencySetting;
             }
